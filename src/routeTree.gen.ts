@@ -15,7 +15,10 @@ import { Route as SignUpSplatRouteImport } from './routes/sign-up.$'
 import { Route as SignInSplatRouteImport } from './routes/sign-in.$'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedHadistRouteImport } from './routes/_authenticated/hadist'
+import { Route as AuthenticatedDoaHarianRouteImport } from './routes/_authenticated/doa-harian'
 import { Route as AuthenticatedChatRouteImport } from './routes/_authenticated/chat'
+import { Route as AuthenticatedHadistBookIdRouteImport } from './routes/_authenticated/hadist.$bookId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -46,58 +49,98 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedHadistRoute = AuthenticatedHadistRouteImport.update({
+  id: '/hadist',
+  path: '/hadist',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDoaHarianRoute = AuthenticatedDoaHarianRouteImport.update({
+  id: '/doa-harian',
+  path: '/doa-harian',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedChatRoute = AuthenticatedChatRouteImport.update({
   id: '/chat',
   path: '/chat',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedHadistBookIdRoute =
+  AuthenticatedHadistBookIdRouteImport.update({
+    id: '/$bookId',
+    path: '/$bookId',
+    getParentRoute: () => AuthenticatedHadistRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/doa-harian': typeof AuthenticatedDoaHarianRoute
+  '/hadist': typeof AuthenticatedHadistRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/hadist/$bookId': typeof AuthenticatedHadistBookIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof AuthenticatedChatRoute
+  '/doa-harian': typeof AuthenticatedDoaHarianRoute
+  '/hadist': typeof AuthenticatedHadistRouteWithChildren
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/hadist/$bookId': typeof AuthenticatedHadistBookIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/_authenticated/chat': typeof AuthenticatedChatRoute
+  '/_authenticated/doa-harian': typeof AuthenticatedDoaHarianRoute
+  '/_authenticated/hadist': typeof AuthenticatedHadistRouteWithChildren
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/sign-in/$': typeof SignInSplatRoute
   '/sign-up/$': typeof SignUpSplatRoute
+  '/_authenticated/hadist/$bookId': typeof AuthenticatedHadistBookIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/chat'
+    | '/doa-harian'
+    | '/hadist'
     | '/profile'
     | '/settings'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/hadist/$bookId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/profile' | '/settings' | '/sign-in/$' | '/sign-up/$'
+  to:
+    | '/'
+    | '/chat'
+    | '/doa-harian'
+    | '/hadist'
+    | '/profile'
+    | '/settings'
+    | '/sign-in/$'
+    | '/sign-up/$'
+    | '/hadist/$bookId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/_authenticated/chat'
+    | '/_authenticated/doa-harian'
+    | '/_authenticated/hadist'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/sign-in/$'
     | '/sign-up/$'
+    | '/_authenticated/hadist/$bookId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,6 +194,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/hadist': {
+      id: '/_authenticated/hadist'
+      path: '/hadist'
+      fullPath: '/hadist'
+      preLoaderRoute: typeof AuthenticatedHadistRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/doa-harian': {
+      id: '/_authenticated/doa-harian'
+      path: '/doa-harian'
+      fullPath: '/doa-harian'
+      preLoaderRoute: typeof AuthenticatedDoaHarianRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/chat': {
       id: '/_authenticated/chat'
       path: '/chat'
@@ -158,17 +215,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/hadist/$bookId': {
+      id: '/_authenticated/hadist/$bookId'
+      path: '/$bookId'
+      fullPath: '/hadist/$bookId'
+      preLoaderRoute: typeof AuthenticatedHadistBookIdRouteImport
+      parentRoute: typeof AuthenticatedHadistRoute
+    }
   }
 }
 
+interface AuthenticatedHadistRouteChildren {
+  AuthenticatedHadistBookIdRoute: typeof AuthenticatedHadistBookIdRoute
+}
+
+const AuthenticatedHadistRouteChildren: AuthenticatedHadistRouteChildren = {
+  AuthenticatedHadistBookIdRoute: AuthenticatedHadistBookIdRoute,
+}
+
+const AuthenticatedHadistRouteWithChildren =
+  AuthenticatedHadistRoute._addFileChildren(AuthenticatedHadistRouteChildren)
+
 interface AuthenticatedRouteChildren {
   AuthenticatedChatRoute: typeof AuthenticatedChatRoute
+  AuthenticatedDoaHarianRoute: typeof AuthenticatedDoaHarianRoute
+  AuthenticatedHadistRoute: typeof AuthenticatedHadistRouteWithChildren
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChatRoute: AuthenticatedChatRoute,
+  AuthenticatedDoaHarianRoute: AuthenticatedDoaHarianRoute,
+  AuthenticatedHadistRoute: AuthenticatedHadistRouteWithChildren,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }

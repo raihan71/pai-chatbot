@@ -1,18 +1,20 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { auth } from "@clerk/tanstack-react-start/server";
-import { createServerFn } from "@tanstack/react-start";
-
-const checkAuth = createServerFn({ method: "GET" }).handler(async () => {
-  const a = await auth();
-  return { userId: a.userId };
-});
+import { Navigate, Outlet, createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@clerk/tanstack-react-start";
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: async () => {
-    const { userId } = await checkAuth();
-    if (!userId) {
-      throw redirect({ to: "/sign-in/$", params: { _splat: "" } });
-    }
-  },
-  component: () => <Outlet />,
+  component: AuthenticatedGate,
 });
+
+function AuthenticatedGate() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (!isSignedIn) {
+    return <Navigate to="/sign-in/$" params={{ _splat: "" }} replace />;
+  }
+
+  return <Outlet />;
+}

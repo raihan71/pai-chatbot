@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireUserId } from "./clerk.server";
+import { auth } from "@clerk/tanstack-react-start/server";
 import { getAnthropic, buildSystemPrompt } from "./anthropic.server";
 import {
   getUsage,
@@ -10,90 +11,11 @@ import {
   saveMessage,
   type SavedMessage,
 } from "./contentful.server";
-import { auth } from "@clerk/tanstack-react-start/server";
-
 export interface ThreadSummary {
   sessionId: string;
   title: string;
   lastAt: string;
 }
-
-export interface HadithCard {
-  bookName: string;
-  bookId: string;
-  hadithNumber: number;
-  arabic: string;
-  translation: string;
-  source: string;
-}
-
-const HADITH_API_BASE = (import.meta.env.VITE_API_HADIST || "https://api.hadith.gading.dev").trim();
-
-function normalizeHadithCard(
-  payload: unknown,
-  fallbackBookId: string,
-  fallbackNumber: number,
-): HadithCard | null {
-  const data = (payload as { data?: unknown })?.data ?? payload;
-  if (!data || typeof data !== "object") return null;
-
-  const hadith = data as Record<string, unknown>;
-  const bookName = typeof hadith.name === "string" ? hadith.name : `HR. ${fallbackBookId}`;
-  const resolvedBookId = typeof hadith.id === "string" ? hadith.id : fallbackBookId;
-
-  const contents =
-    hadith.contents && typeof hadith.contents === "object"
-      ? (hadith.contents as Record<string, unknown>)
-      : null;
-
-  const hadithNumber = Number(contents?.number ?? fallbackNumber);
-  const arabic = typeof contents?.arab === "string" ? contents.arab : "";
-  const translation = typeof contents?.id === "string" ? contents.id : "";
-
-  if (!arabic && !translation) return null;
-
-  const resolvedNumber = Number.isFinite(hadithNumber) ? hadithNumber : fallbackNumber;
-
-  return {
-    bookName,
-    bookId: resolvedBookId,
-    hadithNumber: resolvedNumber,
-    arabic: arabic || translation,
-    translation: translation || arabic,
-    source: `${HADITH_API_BASE}/books/${resolvedBookId}/${resolvedNumber}`,
-  };
-}
-
-async function fetchHadithByNumber(
-  bookId: string,
-  hadithNumber: number,
-): Promise<HadithCard | null> {
-  const hadithRes = await fetch(
-    `${HADITH_API_BASE}/books/${encodeURIComponent(bookId)}/${hadithNumber}`,
-    {
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    },
-  );
-
-  if (!hadithRes.ok) return null;
-
-  return normalizeHadithCard(await hadithRes.json(), bookId, hadithNumber);
-}
-
-export const getRandomHadith = createServerFn({ method: "GET" }).handler(async () => {
-  const bookId = (import.meta.env.VITE_HADITH_HISTORY || "bukhari").trim().toLowerCase();
-  const attempts = [Math.floor(Math.random() * 150) + 1, 1];
-
-  for (const hadithNumber of attempts) {
-    const card = await fetchHadithByNumber(bookId, hadithNumber);
-    if (card) return card;
-  }
-
-  throw new Error("Failed to load hadith");
-});
 
 export const getThreads = createServerFn({ method: "GET" }).handler(async () => {
   const userId = await requireUserId();
