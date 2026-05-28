@@ -6,4 +6,13 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
+  vite: {
+    build: {
+      chunkSizeWarningLimit: 10000,
+      ssr: true,
+      target: "esnext",
+      sourcemap: false,
+      minify: "esbuild",
+    },
+  },
 });

@@ -194,7 +194,7 @@ function SidebarPanel({
               <span className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="truncate">{menu.name}</span>
                 {menu.badge ? (
-                  <span className="inline-flex shrink-0 items-center rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-foreground">
+                  <span className="inline-flex shrink-0 items-center rounded-full border border-gold/30 bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-foreground dark:border-gold/50 dark:bg-gold/20 dark:text-gold-300">
                     {menu.badge}
                   </span>
                 ) : null}
@@ -210,9 +210,11 @@ function SidebarPanel({
             </span>
           </div>
         </div>
-        <div className="flex items-center justify-center gap-1 pt-2.5 text-xs text-muted-foreground bg-background/50 border-t border-border">
-          <span className="text-xs text-muted-foreground">Beta version</span>
-        </div>
+      </div>
+      <div className="border-t border-sidebar-border">
+        <footer className="flex items-center justify-center gap-1 p-2 text-xs text-muted-foreground bg-background/50">
+          <small className="text-xs text-muted-foreground">Beta Version 1.0.0</small>
+        </footer>
       </div>
     </div>
   );
@@ -374,7 +376,7 @@ function ChatPage() {
               type="button"
               size="icon"
               variant="outline"
-              className="h-10 w-10 rounded-full border-border bg-gradient-to-br from-slate-100 to-stone-50 text-foreground/90 shadow-lg backdrop-blur md:h-11 md:w-11 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 w-10 rounded-full border-border bg-gradient-to-bl from-slate-50 to-stone-100 text-foreground/90 dark:bg-gradient-to-br dark:from-slate-800 dark:to-stone-900 dark:text-foreground/90 dark:shadow-lg dark:backdrop-blur md:h-11 md:w-11 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Buka jadwal sholat"
             >
               <Clock3 className="size-4 animate-spin" />
