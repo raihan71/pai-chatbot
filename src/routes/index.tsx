@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@clerk/tanstack-react-start";
 import { Sparkles, BookOpen, Clock, History, ArrowRight } from "lucide-react";
+import { images } from "@/configs/image";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -13,10 +14,10 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-hero">
       {/* Nav */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <header className="mx-auto flex max-w-6xl items-start justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2.5">
           <Logo />
-          <span className="text-base font-semibold tracking-tight text-foreground">{appName}</span>
+          <span className="sr-only">{appName}</span>
         </Link>
         <nav className="flex items-center gap-2">
           {!isSignedIn ? (
@@ -46,13 +47,13 @@ function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section className="mx-auto max-w-6xl px-6 pt-10 pb-20 text-center md:pt-20">
+      <section className="mx-auto max-w-6xl px-6 pt-12 pb-20 text-center">
         <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card/60 px-4 py-1.5 text-xs font-medium text-primary backdrop-blur">
           <Sparkles className="size-3.5" />
           Teman belajar Islami berbasis AI
         </div>
         <p className="font-arabic mb-3 text-2xl text-primary/80">
-          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+          Azami Artificial Intelligence PAI
         </p>
         <h1 className="mx-auto max-w-3xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-foreground md:text-6xl">
           Teman AI Islami untuk
@@ -136,7 +137,7 @@ function LandingPage() {
             tidak menggantikan nasihat ulama, ustadz, atau lembaga fatwa resmi.
           </p>
           <p className="mt-3 text-xs text-muted-foreground/70">
-            © {new Date().getFullYear()} {appName}. All rights reserved.
+            © {new Date().getFullYear()} Azami Artificial Intelligence PAI. All rights reserved.
           </p>
         </div>
       </footer>
@@ -146,10 +147,15 @@ function LandingPage() {
 
 function Logo() {
   return (
-    <div className="relative flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-      <span className="font-arabic text-lg leading-none">ﷲ</span>
-      <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-gold ring-2 ring-background" />
-    </div>
+    <img
+      src={images.logo}
+      alt="Sahabat Muslim"
+      width={788}
+      height={317}
+      className="block h-auto w-28 shrink-0 object-contain md:w-[148px]"
+      loading="eager"
+      decoding="async"
+    />
   );
 }
 

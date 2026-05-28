@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireUserId } from "./clerk.server";
-import { getAnthropic, buildSystemPrompt } from "./anthropic.server";
+import { auth } from "@clerk/tanstack-react-start/server";
+import {
+  getAnthropic,
+  buildSystemPrompt,
+  getCitationHostname,
+  getCitationUrlForMessage,
+} from "./anthropic.server";
+import { defluffForClaude } from "./defluffer";
 import {
   getUsage,
   incrementUsage,
@@ -10,90 +17,67 @@ import {
   saveMessage,
   type SavedMessage,
 } from "./contentful.server";
-import { auth } from "@clerk/tanstack-react-start/server";
-
 export interface ThreadSummary {
   sessionId: string;
   title: string;
   lastAt: string;
 }
 
-export interface HadithCard {
-  bookName: string;
-  bookId: string;
-  hadithNumber: number;
-  arabic: string;
-  translation: string;
-  source: string;
+function collectCitationSource(citation: unknown): string | null {
+  if (!citation || typeof citation !== "object") return null;
+  const data = citation as Record<string, unknown>;
+  const url = typeof data.url === "string" ? data.url.trim() : "";
+  const source = typeof data.source === "string" ? data.source.trim() : "";
+  return url || source || null;
 }
 
-const HADITH_API_BASE = (import.meta.env.VITE_API_HADIST || "https://api.hadith.gading.dev").trim();
+function appendCitationSources(text: string, sources: Set<string>) {
+  const sourceList = [...sources].filter((source) => source && !text.includes(source));
+  if (sourceList.length === 0) return text;
 
-function normalizeHadithCard(
-  payload: unknown,
-  fallbackBookId: string,
-  fallbackNumber: number,
-): HadithCard | null {
-  const data = (payload as { data?: unknown })?.data ?? payload;
-  if (!data || typeof data !== "object") return null;
-
-  const hadith = data as Record<string, unknown>;
-  const bookName = typeof hadith.name === "string" ? hadith.name : `HR. ${fallbackBookId}`;
-  const resolvedBookId = typeof hadith.id === "string" ? hadith.id : fallbackBookId;
-
-  const contents =
-    hadith.contents && typeof hadith.contents === "object"
-      ? (hadith.contents as Record<string, unknown>)
-      : null;
-
-  const hadithNumber = Number(contents?.number ?? fallbackNumber);
-  const arabic = typeof contents?.arab === "string" ? contents.arab : "";
-  const translation = typeof contents?.id === "string" ? contents.id : "";
-
-  if (!arabic && !translation) return null;
-
-  const resolvedNumber = Number.isFinite(hadithNumber) ? hadithNumber : fallbackNumber;
-
-  return {
-    bookName,
-    bookId: resolvedBookId,
-    hadithNumber: resolvedNumber,
-    arabic: arabic || translation,
-    translation: translation || arabic,
-    source: `${HADITH_API_BASE}/books/${resolvedBookId}/${resolvedNumber}`,
-  };
+  const label = sourceList.length === 1 ? "Sumber" : "Sumber";
+  return `${text.trim()}\n\n${label}: ${sourceList.join(", ")}`;
 }
 
-async function fetchHadithByNumber(
-  bookId: string,
-  hadithNumber: number,
-): Promise<HadithCard | null> {
-  const hadithRes = await fetch(
-    `${HADITH_API_BASE}/books/${encodeURIComponent(bookId)}/${hadithNumber}`,
-    {
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    },
-  );
-
-  if (!hadithRes.ok) return null;
-
-  return normalizeHadithCard(await hadithRes.json(), bookId, hadithNumber);
+function shouldFetchCitationSource(message: string) {
+  const normalized = message.toLowerCase();
+  return [
+    "url",
+    "link",
+    "citation",
+    "cite",
+    "sumber",
+    "kampus",
+    "universitas",
+    "university",
+    "stitalazami",
+    "al azami",
+    "alazami",
+    "pmb",
+    "registrasi",
+    "pendaftaran",
+    "akademik",
+    "prodi",
+    "program studi",
+    "biaya",
+    "beasiswa",
+    "jadwal",
+    "fakultas",
+    "dosen",
+    "alamat",
+    "telepon",
+    "whatsapp",
+    "kontak",
+  ].some((keyword) => normalized.includes(keyword));
 }
 
-export const getRandomHadith = createServerFn({ method: "GET" }).handler(async () => {
-  const bookId = (import.meta.env.VITE_HADITH_HISTORY || "bukhari").trim().toLowerCase();
-  const attempts = [Math.floor(Math.random() * 150) + 1, 1];
+function withCitationFetchHint(message: string, selectedCitationUrl: string | null) {
+  if (!selectedCitationUrl || !shouldFetchCitationSource(message)) return message;
 
-  for (const hadithNumber of attempts) {
-    const card = await fetchHadithByNumber(bookId, hadithNumber);
-    if (card) return card;
-  }
+  return `${message}
 
-  throw new Error("Failed to load hadith");
-});
+[Instruksi internal: sebelum menjawab, gunakan web_fetch untuk mengambil informasi terbaru dari halaman resmi universitas yang paling relevan ini: ${selectedCitationUrl}. Jawab berdasarkan hasil fetch dan cantumkan sumbernya.]`;
+}
 
 export const getThreads = createServerFn({ method: "GET" }).handler(async () => {
   const userId = await requireUserId();
@@ -170,28 +154,77 @@ export const sendMessage = createServerFn({ method: "POST" })
       messageOrder: nextOrder,
     });
 
-    // Build context for Claude
-    const claudeMessages = [
+    // Build compact outbound context for Claude. Persisted chat content stays unchanged.
+    const selectedCitationUrl = getCitationUrlForMessage(data.message);
+    const rawClaudeMessages = [
       ...prior.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
-      { role: "user" as const, content: data.message },
+      {
+        role: "user" as const,
+        content: withCitationFetchHint(data.message, selectedCitationUrl),
+      },
     ];
+    const claudeMessages = rawClaudeMessages.map((m) => ({
+      ...m,
+      content: defluffForClaude(m.content).text,
+    }));
 
     let assistantText = "";
     try {
       const client = getAnthropic();
+      const systemPrompt = defluffForClaude(buildSystemPrompt(data.style)).text;
+      const citationHostname = getCitationHostname();
+      const forceCitationFetch = shouldFetchCitationSource(data.message) && !!citationHostname;
+      const citationTools = citationHostname
+        ? [
+            {
+              type: "web_fetch_20260309" as const,
+              name: "web_fetch" as const,
+              allowed_callers: ["direct" as const],
+              allowed_domains: [citationHostname],
+              citations: { enabled: true },
+              max_uses: 2,
+              max_content_tokens: 8000,
+            },
+          ]
+        : undefined;
       const resp = await client.messages.create({
         model: "claude-haiku-4-5",
         max_tokens: 1024,
-        system: buildSystemPrompt(data.style),
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
         messages: claudeMessages,
+        ...(citationTools ? { tools: citationTools } : {}),
+        ...(forceCitationFetch
+          ? {
+              tool_choice: {
+                type: "tool" as const,
+                name: "web_fetch",
+                disable_parallel_tool_use: true,
+              },
+            }
+          : {}),
       });
+      const citationSources = new Set<string>();
       assistantText = resp.content
-        .map((b) => (b.type === "text" ? b.text : ""))
+        .map((b) => {
+          if (b.type !== "text") return "";
+          for (const citation of b.citations ?? []) {
+            const source = collectCitationSource(citation);
+            if (source) citationSources.add(source);
+          }
+          return b.text;
+        })
         .join("")
         .trim();
+      assistantText = appendCitationSources(assistantText, citationSources);
       if (!assistantText) assistantText = "Maaf, saya belum bisa menjawab saat ini. Coba lagi ya.";
     } catch (err) {
       console.error("Claude error", err);

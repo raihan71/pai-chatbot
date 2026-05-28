@@ -169,6 +169,7 @@
   .bg-hero {
     background: var(--gradient-hero);
   }
+
   .shadow-soft {
     box-shadow: var(--shadow-soft);
   }
