@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Clock3, Menu, MessageCircle, Plus, Send } from "lucide-react";
-import { images } from "@/configs/image";
+import { icons, logo } from "@/configs/image";
 import {
   DEFAULT_CHAT_CONTENT_MODE,
   DEFAULT_HADITH_BOOK,
@@ -100,9 +100,9 @@ function SidebarPanel({
   return (
     <div className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex justify-center items-center rounded-full bg-primary/5 p-1">
+        <div className="flex justify-center items-center rounded-full bg-slate-100 p-1">
           <img
-            src={images.logoDark}
+            src={logo.logoStar}
             alt={appName}
             width={28}
             height={28}
@@ -370,16 +370,21 @@ function ChatPage() {
   return (
     <div className="md:flex h-screen w-full bg-background">
       <Dialog>
-        <div className="fixed right-3 top-20 z-40 md:right-6 md:top-22">
+        <div className="fixed bottom-32 right-4 z-40 md:bottom-auto md:right-6 md:top-22">
           <DialogTrigger asChild>
             <Button
               type="button"
               size="icon"
               variant="outline"
-              className="h-10 w-10 rounded-full border-border bg-gradient-to-bl from-slate-50 to-stone-100 text-foreground/90 dark:bg-gradient-to-br dark:from-slate-800 dark:to-stone-900 dark:text-foreground/90 dark:shadow-lg dark:backdrop-blur md:h-11 md:w-11 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-12 w-12 rounded-full border border-gray-200/50 bg-gradient-to-tl from-stone-300 to-slate-100 text-foreground/90 shadow-[0_14px_28px_rgba(15,23,42,0.18),0_4px_10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-black/5 transition hover:scale-110 hover:shadow-[0_18px_34px_rgba(15,23,42,0.22),0_6px_14px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.95)] dark:border-white/10 dark:bg-gradient-to-br dark:from-slate-700 dark:to-stone-900 dark:text-foreground/90 dark:shadow-[0_16px_32px_rgba(0,0,0,0.42),0_5px_14px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.12)] dark:ring-white/10 dark:backdrop-blur md:h-12 md:w-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Buka jadwal sholat"
             >
-              <Clock3 className="size-4 animate-spin" />
+              <img
+                src={icons.qibla3}
+                alt=""
+                aria-hidden="true"
+                className="size-8 ml-1 object-contain"
+              />
             </Button>
           </DialogTrigger>
         </div>
@@ -491,7 +496,7 @@ function ChatPage() {
               <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-soft">
                 <div className="inline-flex w-fit rounded-2xl bg-gradient-to-l from-slate-50 to-stone-100 p-2">
                   <img
-                    src={images.logoAccent}
+                    src={logo.logoFullText}
                     alt={appName}
                     width={200}
                     height={200}
