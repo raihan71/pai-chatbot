@@ -1,12 +1,11 @@
 const CACHE_NAME = "sahabat-muslim-pwa-v1";
 const PRECACHE_URLS = [
-  "/site.webmanifest",
-  "/favicon.ico",
-  "/favicon-16x16.png",
-  "/favicon-32x32.png",
-  "/apple-touch-icon.png",
-  "/android-chrome-192x192.png",
-  "/android-chrome-512x512.png",
+  "./manifest.json",
+  "./favicon.ico",
+  "./genfavicon-16.png",
+  "./genfavicon-32.png",
+  "./genfavicon-180.png",
+  "./apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {

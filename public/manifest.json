@@ -1,0 +1,48 @@
+{
+  "name": "AAI PAI - Sahabat mahasiswa AI Islami",
+  "short_name": "AAI PAI",
+  "description": "Teman AI Islami untuk keseharian mahasiswa.",
+  "icons": [
+    {
+      "src": "./genfavicon-32.png",
+      "sizes": "36x36",
+      "type": "image\/png",
+      "density": "0.75"
+    },
+    {
+      "src": "./genfavicon-48.png",
+      "sizes": "48x48",
+      "type": "image\/png",
+      "density": "1.0"
+    },
+    {
+      "src": "./genfavicon-64.png",
+      "sizes": "64x64",
+      "type": "image\/png",
+      "density": "1.5"
+    },
+    {
+      "src": "./genfavicon-114.png",
+      "sizes": "114x114",
+      "type": "image\/png",
+      "density": "2.0"
+    },
+    {
+      "src": "./genfavicon-128.png",
+      "sizes": "128x128",
+      "type": "image\/png",
+      "density": "3.0"
+    },
+    {
+      "src": "./genfavicon-180.png",
+      "sizes": "192x192",
+      "type": "image\/png",
+      "density": "4.0"
+    }
+  ],
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "./",
+  "scope": "/"
+}

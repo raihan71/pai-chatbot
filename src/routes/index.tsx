@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@clerk/tanstack-react-start";
 import { Sparkles, BookOpen, Clock, History, ArrowRight } from "lucide-react";
-import { images } from "@/configs/image";
+import { logo } from "@/configs/image";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -148,7 +148,7 @@ function LandingPage() {
 function Logo() {
   return (
     <img
-      src={images.logo}
+      src={logo.logoWithoutText}
       alt="Sahabat Muslim"
       width={788}
       height={317}
