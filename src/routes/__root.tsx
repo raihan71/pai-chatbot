@@ -84,6 +84,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:title", content: appName },
       {
+        property: "og:image",
+        content:
+          "https://github.com/raihan71/pai-chatbot/blob/main/public/apple-touch-icon.png?raw=true",
+      },
+      {
         property: "og:description",
         content: "Teman AI Islami untuk keseharian mahasiswa.",
       },
