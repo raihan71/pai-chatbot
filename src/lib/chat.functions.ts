@@ -10,6 +10,7 @@ import {
 } from "./anthropic.server";
 import { defluffForClaude } from "./defluffer";
 import { createMimoMessage } from "./xiaomi-mimo.server";
+import { createOpenRouterMessage } from "./openrouter.server";
 import {
   getUsage,
   incrementUsage,
@@ -72,12 +73,16 @@ function shouldFetchCitationSource(message: string) {
   ].some((keyword) => normalized.includes(keyword));
 }
 
-function withCitationFetchHint(message: string, selectedCitationUrl: string | null) {
+function withCitationFetchHint(
+  message: string,
+  selectedCitationUrl: string | null,
+  toolName = "web_fetch",
+) {
   if (!selectedCitationUrl || !shouldFetchCitationSource(message)) return message;
 
   return `${message}
 
-[Instruksi internal: sebelum menjawab, gunakan web_fetch untuk mengambil informasi terbaru dari halaman resmi universitas yang paling relevan ini: ${selectedCitationUrl}. Jawab berdasarkan hasil fetch dan cantumkan sumbernya.]`;
+[Instruksi internal: sebelum menjawab, gunakan ${toolName} untuk mengambil informasi terbaru dari halaman resmi universitas yang paling relevan ini: ${selectedCitationUrl}. Jawab berdasarkan hasil pencarian dan cantumkan sumbernya.]`;
 }
 
 function getCompanyAiProvider() {
@@ -86,6 +91,17 @@ function getCompanyAiProvider() {
 
 function shouldUseAnthropic() {
   return getCompanyAiProvider() === "anthropic";
+}
+
+function shouldUseOpenRouter() {
+  return getCompanyAiProvider() === "openrouter";
+}
+
+function getProviderLabel() {
+  const provider = getCompanyAiProvider();
+  if (provider === "anthropic") return "Claude";
+  if (provider === "openrouter") return "OpenRouter";
+  return "MiMo";
 }
 
 export const getThreads = createServerFn({ method: "GET" }).handler(async () => {
@@ -166,6 +182,7 @@ export const sendMessage = createServerFn({ method: "POST" })
     // Build compact outbound context. Persisted chat content stays unchanged.
     const selectedCitationUrl = getCitationUrlForMessage(data.message);
     const useAnthropic = shouldUseAnthropic();
+    const useOpenRouter = shouldUseOpenRouter();
     const rawMessages = [
       ...prior.map((m) => ({
         role: m.role as "user" | "assistant",
@@ -175,7 +192,9 @@ export const sendMessage = createServerFn({ method: "POST" })
         role: "user" as const,
         content: useAnthropic
           ? withCitationFetchHint(data.message, selectedCitationUrl)
-          : data.message,
+          : useOpenRouter
+            ? withCitationFetchHint(data.message, selectedCitationUrl, "web_search")
+            : data.message,
       },
     ];
     const aiMessages = rawMessages.map((m) => ({
@@ -186,24 +205,36 @@ export const sendMessage = createServerFn({ method: "POST" })
     let assistantText = "";
     try {
       const systemPrompt = defluffForClaude(buildSystemPrompt(data.style)).text;
-
-      if (useAnthropic) {
-        const client = getAnthropic();
-        const citationHostname = getCitationHostname();
-        const forceCitationFetch = shouldFetchCitationSource(data.message) && !!citationHostname;
-        const citationTools = citationHostname
+      const citationHostname = getCitationHostname();
+      const forceCitationFetch = shouldFetchCitationSource(data.message) && !!citationHostname;
+      const citationTools = citationHostname
+        ? [
+            {
+              type: "web_fetch_20260309" as const,
+              name: "web_fetch" as const,
+              allowed_callers: ["direct" as const],
+              allowed_domains: [citationHostname],
+              citations: { enabled: true },
+              max_uses: 2,
+              max_content_tokens: 8000,
+            },
+          ]
+        : undefined;
+      const openRouterCitationTools =
+        forceCitationFetch && citationHostname
           ? [
               {
-                type: "web_fetch_20260309" as const,
-                name: "web_fetch" as const,
-                allowed_callers: ["direct" as const],
-                allowed_domains: [citationHostname],
-                citations: { enabled: true },
-                max_uses: 2,
-                max_content_tokens: 8000,
+                type: "openrouter:web_search" as const,
+                parameters: {
+                  allowedDomains: [citationHostname],
+                  maxResults: 3,
+                  maxTotalResults: 3,
+                },
               },
             ]
           : undefined;
+      if (useAnthropic) {
+        const client = getAnthropic();
         const resp = await client.messages.create({
           model: "claude-haiku-4-5",
           max_tokens: 1024,
@@ -239,6 +270,27 @@ export const sendMessage = createServerFn({ method: "POST" })
           .join("")
           .trim();
         assistantText = appendCitationSources(assistantText, citationSources);
+      } else if (useOpenRouter) {
+        const resp = await createOpenRouterMessage({
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" },
+            },
+          ],
+          messages: aiMessages,
+          ...(openRouterCitationTools ? { tools: openRouterCitationTools } : {}),
+          ...(forceCitationFetch
+            ? {
+                toolChoice: {
+                  type: "openrouter:web_search",
+                },
+              }
+            : {}),
+          maxTokens: 1024,
+        });
+        assistantText = appendCitationSources(resp.text, resp.sources);
       } else {
         const resp = await createMimoMessage({
           system: systemPrompt,
@@ -251,7 +303,7 @@ export const sendMessage = createServerFn({ method: "POST" })
 
       if (!assistantText) assistantText = "Maaf, saya belum bisa menjawab saat ini. Coba lagi ya.";
     } catch (err) {
-      console.error(`${useAnthropic ? "Claude" : "MiMo"} error`, err);
+      console.error(`${getProviderLabel()} error`, err);
       // Do not increment usage; do not save assistant message
       return {
         ok: false as const,
