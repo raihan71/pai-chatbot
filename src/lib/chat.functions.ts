@@ -9,6 +9,7 @@ import {
   getCitationUrlForMessage,
 } from "./anthropic.server";
 import { defluffForClaude } from "./defluffer";
+import { createMimoMessage } from "./xiaomi-mimo.server";
 import {
   getUsage,
   incrementUsage,
@@ -79,6 +80,14 @@ function withCitationFetchHint(message: string, selectedCitationUrl: string | nu
 [Instruksi internal: sebelum menjawab, gunakan web_fetch untuk mengambil informasi terbaru dari halaman resmi universitas yang paling relevan ini: ${selectedCitationUrl}. Jawab berdasarkan hasil fetch dan cantumkan sumbernya.]`;
 }
 
+function getCompanyAiProvider() {
+  return (import.meta.env.VITE_COMPANY_AI || "anthropic").trim().toLowerCase();
+}
+
+function shouldUseAnthropic() {
+  return getCompanyAiProvider() === "anthropic";
+}
+
 export const getThreads = createServerFn({ method: "GET" }).handler(async () => {
   const userId = await requireUserId();
   const all = await listUserMessages(userId);
@@ -125,7 +134,7 @@ export const sendMessage = createServerFn({ method: "POST" })
     const userId = a.userId;
     const userEmail = (a.sessionClaims as { email?: string } | null)?.email;
 
-    // Check limit BEFORE calling Claude
+    // Check limit BEFORE calling the configured AI provider.
     const usage = await getUsage(userId);
     if (usage.totalQuestions >= usage.limit) {
       return {
@@ -154,80 +163,95 @@ export const sendMessage = createServerFn({ method: "POST" })
       messageOrder: nextOrder,
     });
 
-    // Build compact outbound context for Claude. Persisted chat content stays unchanged.
+    // Build compact outbound context. Persisted chat content stays unchanged.
     const selectedCitationUrl = getCitationUrlForMessage(data.message);
-    const rawClaudeMessages = [
+    const useAnthropic = shouldUseAnthropic();
+    const rawMessages = [
       ...prior.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),
       {
         role: "user" as const,
-        content: withCitationFetchHint(data.message, selectedCitationUrl),
+        content: useAnthropic
+          ? withCitationFetchHint(data.message, selectedCitationUrl)
+          : data.message,
       },
     ];
-    const claudeMessages = rawClaudeMessages.map((m) => ({
+    const aiMessages = rawMessages.map((m) => ({
       ...m,
       content: defluffForClaude(m.content).text,
     }));
 
     let assistantText = "";
     try {
-      const client = getAnthropic();
       const systemPrompt = defluffForClaude(buildSystemPrompt(data.style)).text;
-      const citationHostname = getCitationHostname();
-      const forceCitationFetch = shouldFetchCitationSource(data.message) && !!citationHostname;
-      const citationTools = citationHostname
-        ? [
-            {
-              type: "web_fetch_20260309" as const,
-              name: "web_fetch" as const,
-              allowed_callers: ["direct" as const],
-              allowed_domains: [citationHostname],
-              citations: { enabled: true },
-              max_uses: 2,
-              max_content_tokens: 8000,
-            },
-          ]
-        : undefined;
-      const resp = await client.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: [
-          {
-            type: "text",
-            text: systemPrompt,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: claudeMessages,
-        ...(citationTools ? { tools: citationTools } : {}),
-        ...(forceCitationFetch
-          ? {
-              tool_choice: {
-                type: "tool" as const,
-                name: "web_fetch",
-                disable_parallel_tool_use: true,
+
+      if (useAnthropic) {
+        const client = getAnthropic();
+        const citationHostname = getCitationHostname();
+        const forceCitationFetch = shouldFetchCitationSource(data.message) && !!citationHostname;
+        const citationTools = citationHostname
+          ? [
+              {
+                type: "web_fetch_20260309" as const,
+                name: "web_fetch" as const,
+                allowed_callers: ["direct" as const],
+                allowed_domains: [citationHostname],
+                citations: { enabled: true },
+                max_uses: 2,
+                max_content_tokens: 8000,
               },
+            ]
+          : undefined;
+        const resp = await client.messages.create({
+          model: "claude-haiku-4-5",
+          max_tokens: 1024,
+          system: [
+            {
+              type: "text",
+              text: systemPrompt,
+              cache_control: { type: "ephemeral" },
+            },
+          ],
+          messages: aiMessages,
+          ...(citationTools ? { tools: citationTools } : {}),
+          ...(forceCitationFetch
+            ? {
+                tool_choice: {
+                  type: "tool" as const,
+                  name: "web_fetch",
+                  disable_parallel_tool_use: true,
+                },
+              }
+            : {}),
+        });
+        const citationSources = new Set<string>();
+        assistantText = resp.content
+          .map((b) => {
+            if (b.type !== "text") return "";
+            for (const citation of b.citations ?? []) {
+              const source = collectCitationSource(citation);
+              if (source) citationSources.add(source);
             }
-          : {}),
-      });
-      const citationSources = new Set<string>();
-      assistantText = resp.content
-        .map((b) => {
-          if (b.type !== "text") return "";
-          for (const citation of b.citations ?? []) {
-            const source = collectCitationSource(citation);
-            if (source) citationSources.add(source);
-          }
-          return b.text;
-        })
-        .join("")
-        .trim();
-      assistantText = appendCitationSources(assistantText, citationSources);
+            return b.text;
+          })
+          .join("")
+          .trim();
+        assistantText = appendCitationSources(assistantText, citationSources);
+      } else {
+        const resp = await createMimoMessage({
+          system: systemPrompt,
+          messages: aiMessages,
+          maxTokens: 1024,
+          enableUniversitySearch: shouldFetchCitationSource(data.message),
+        });
+        assistantText = resp.text;
+      }
+
       if (!assistantText) assistantText = "Maaf, saya belum bisa menjawab saat ini. Coba lagi ya.";
     } catch (err) {
-      console.error("Claude error", err);
+      console.error(`${useAnthropic ? "Claude" : "MiMo"} error`, err);
       // Do not increment usage; do not save assistant message
       return {
         ok: false as const,
