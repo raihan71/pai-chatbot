@@ -173,7 +173,7 @@ export async function listSessionMessages(
     .sort((a, b) => a.messageOrder - b.messageOrder);
 }
 
-const DEFAULT_LIMIT = 5;
+export const DEFAULT_LIMIT = 5;
 
 export interface UsageRecord {
   totalQuestions: number;

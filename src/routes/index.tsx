@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@clerk/tanstack-react-start";
 import { Sparkles, BookOpen, Clock, History, ArrowRight } from "lucide-react";
 import { logo } from "@/configs/image";
+import { DEFAULT_LIMIT } from "@/lib/contentful.server";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -91,7 +92,9 @@ function LandingPage() {
           )}
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground">Gratis 3 pertanyaan untuk setiap akun</p>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Gratis {DEFAULT_LIMIT} pertanyaan untuk setiap akun
+        </p>
       </section>
 
       {/* Benefits */}

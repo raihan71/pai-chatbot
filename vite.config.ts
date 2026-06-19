@@ -14,5 +14,10 @@ export default defineConfig({
       sourcemap: false,
       minify: "esbuild",
     },
+    server: {
+      allowedHosts: [".stitalazamicjr.ac.id"],
+      port: 3000,
+      strictPort: true,
+    },
   },
 });
